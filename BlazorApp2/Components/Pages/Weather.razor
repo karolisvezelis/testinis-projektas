@@ -1,4 +1,6 @@
 ﻿@page "/weather"
+@using System.Text.Json
+@using System.Text.Json.Serialization
 @attribute [StreamRendering]
 
 <PageTitle>Weather</PageTitle>
@@ -7,58 +9,134 @@
 
 <p>This component demonstrates showing data.</p>
 
-@if (forecasts == null)
+@if (stoteles == null)
 {
     <p><em>Loading...</em></p>
 }
 else
 {
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Temp. (C)</th>
-                <th>Temp. (F)</th>
-                <th>Summary</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var forecast in forecasts)
-            {
+
+ @*    <select class="form-control"
+            @onchange="@((ChangeEventArgs __e) => setSelectedValue(__e?.Value.ToString()))">
+        <option selected value="-1">select one</option>
+        @foreach (var item in stoteles)
+        {
+            <option value="@item.Code">@item.Name</option>
+        }
+    </select> *@
+
+    <InputSelect class="form-select"
+                 style="width:200px"
+                 TValue="string"
+                 Value="mySelect"
+                 ValueChanged="val => setSelectedValue(val)"
+                 ValueExpression="@(() => mySelect)">
+
+        <option selected value="-1">select one</option>
+        @foreach (var item in stoteles)
+        {
+            <option value="@item.Code">@item.Name</option>
+        }
+    </InputSelect>
+
+
+    @if (forecasts != null)
+    {
+        <table class="table">
+            <thead>
                 <tr>
-                    <td>@forecast.Date.ToShortDateString()</td>
-                    <td>@forecast.TemperatureC</td>
-                    <td>@forecast.TemperatureF</td>
-                    <td>@forecast.Summary</td>
+                    <th>Date</th>
+                    <th>Temp. (C)</th>
+                    <th>vejo greitis. (m/s)</th>
+                    <th>feels like  (C)</th>
                 </tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach (var forecast in forecasts)
+                {
+                    <tr>
+                        <td>@forecast.Date</td>
+                        <td>@forecast.airTemperature</td>
+                        <td>@forecast.windSpeed</td>
+                        <td>@forecast.feelsLikeTemperature</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
 }
 
+<h1> @mySelect </h1>
+
 @code {
-    private WeatherForecast[]? forecasts;
+    private ForecastItem[]? forecasts;
+    private Stotis[]? stoteles;
+    private ElementReference myselect;
+    private string mySelect = string.Empty;
+
+
+    public void setSelectedValue(string selectedValue)
+    {
+
+        var httpClient = new HttpClient();
+
+        var message = httpClient.GetAsync($"https://api.meteo.lt/v1/places/{selectedValue}/forecasts/long-term").GetAwaiter().GetResult();
+
+        var result = message.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+        var placesWithForecasts = JsonSerializer.Deserialize<Place[]>(result);
+
+        forecasts = placesWithForecasts.SelectMany(x => x.Items).ToArray();
+    }
 
     protected override async Task OnInitializedAsync()
     {
-        // Simulate asynchronous loading to demonstrate streaming rendering
-        await Task.Delay(500);
+        var httpClient = new HttpClient();
 
-        var startDate = DateOnly.FromDateTime(DateTime.Now);
-        var summaries = new[] { "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching" };
-        forecasts = Enumerable.Range(1, 5).Select(index => new WeatherForecast
-        {
-            Date = startDate.AddDays(index),
-            TemperatureC = Random.Shared.Next(-20, 55),
-            Summary = summaries[Random.Shared.Next(summaries.Length)]
-        }).ToArray();
+        var message = await httpClient.GetAsync("https://api.meteo.lt/v1/places");
+
+        var result = await message.Content.ReadAsStringAsync();
+
+        stoteles = JsonSerializer.Deserialize<Stotis[]>(result);
+
     }
 
-    private class WeatherForecast
+    public class Stotis
     {
-        public DateOnly Date { get; set; }
-        public int TemperatureC { get; set; }
-        public string? Summary { get; set; }
-        public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+        [JsonPropertyName("code")]
+        public string Code { get; set; }
+        [JsonPropertyName("name")]
+        public string Name { get; set; }
+    }
+
+    public class Place
+    {
+
+        [JsonPropertyName("administrativeDivision")]
+        public string administrativeDivision { get; set; }
+
+        [JsonPropertyName("country")]
+        public string country { get; set; }
+
+        [JsonPropertyName("countryCode")]
+        public string countryCode { get; set; }
+
+        [JsonPropertyName("forecastTimestamps")]
+        public ForecastItem[] Items { get; set; }
+    }
+
+    public class ForecastItem
+    {
+        [JsonPropertyName("forecastTimestamps")]
+        public DateTimeOffset Date { get; set; }
+
+        [JsonPropertyName("airTemperature")]
+        public decimal airTemperature { get; set; }
+
+        [JsonPropertyName("feelsLikeTemperature")]
+        public decimal feelsLikeTemperature { get; set; }
+
+        [JsonPropertyName("windSpeed")]
+        public decimal windSpeed { get; set; }
     }
 }
