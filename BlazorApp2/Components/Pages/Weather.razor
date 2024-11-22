@@ -2,6 +2,7 @@
 @using System.Text.Json
 @using System.Text.Json.Serialization
 @attribute [StreamRendering]
+@rendermode InteractiveServer
 
 <PageTitle>Weather</PageTitle>
 
@@ -16,16 +17,16 @@
 else
 {
 
- @*    <select class="form-control"
+    <select class="form-control"
             @onchange="@((ChangeEventArgs __e) => setSelectedValue(__e?.Value.ToString()))">
         <option selected value="-1">select one</option>
         @foreach (var item in stoteles)
         {
             <option value="@item.Code">@item.Name</option>
         }
-    </select> *@
+    </select>
 
-    <InputSelect class="form-select"
+  @*   <InputSelect class="form-select"
                  style="width:200px"
                  TValue="string"
                  Value="mySelect"
@@ -37,7 +38,7 @@ else
         {
             <option value="@item.Code">@item.Name</option>
         }
-    </InputSelect>
+    </InputSelect> *@
 
 
     @if (forecasts != null)
@@ -66,7 +67,7 @@ else
     }
 }
 
-<h1> @mySelect </h1>
+@* <h1> @mySelect </h1> *@
 
 @code {
     private ForecastItem[]? forecasts;
@@ -84,9 +85,9 @@ else
 
         var result = message.Content.ReadAsStringAsync().GetAwaiter().GetResult();
 
-        var placesWithForecasts = JsonSerializer.Deserialize<Place[]>(result);
+        var placesWithForecasts = JsonSerializer.Deserialize<Place>(result);
 
-        forecasts = placesWithForecasts.SelectMany(x => x.Items).ToArray();
+        forecasts = placesWithForecasts.Items;
     }
 
     protected override async Task OnInitializedAsync()
@@ -127,8 +128,8 @@ else
 
     public class ForecastItem
     {
-        [JsonPropertyName("forecastTimestamps")]
-        public DateTimeOffset Date { get; set; }
+        [JsonPropertyName("forecastTimeUtc")]
+        public string Date { get; set; }
 
         [JsonPropertyName("airTemperature")]
         public decimal airTemperature { get; set; }
